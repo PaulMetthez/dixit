@@ -1,0 +1,20 @@
+{
+  "name": "dixit",
+  "version": "1.0.0",
+  "description": "dixit game",
+  "main": "index.js",
+  "scripts": {
+    "devStart": "node server.js"
+  },
+  "keywords": [
+    "dixit"
+  ],
+  "author": "Paul Metthez",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io": "^2.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.3"
+  }
+}
