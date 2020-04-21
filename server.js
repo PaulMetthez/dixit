@@ -14,6 +14,7 @@ let imageShuffled = [];
 let playedList = [];
 let connectList = [];
 let playerPoints = [];
+let maxPoints = 20;
 
 io.on('connection', socket => {
     let index = -1;
@@ -163,7 +164,7 @@ io.on('connection', socket => {
                 }
                 img = 0; vote = 0;
                 currentDrawing = [];
-                if (Math.max(...playerPoints) >= 50) {
+                if (Math.max(...playerPoints) >= maxPoints) {
                     io.emit('endGame', "")
                     gameState = 0;
                 } else {
