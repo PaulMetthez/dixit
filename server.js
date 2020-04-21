@@ -47,7 +47,6 @@ io.on('connection', socket => {
     socket.on('gamestart', () => {
         if (socket.dbId == 1) {
             gamestate = 1;
-            console.log(gamestart, gameState)
             io.emit('gamestart', socket.dbId);
         }
     });
