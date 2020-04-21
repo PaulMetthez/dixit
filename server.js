@@ -49,7 +49,7 @@ io.on('connection', socket => {
         if (socket.dbId == 1) {
             console.log('gameStart true');
             gamestate = 1;
-            io.emit('gamestart', socket.dbId);
+            io.emit('gamestarted', []);
         }
     });
     socket.on('commands', () => {
