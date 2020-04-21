@@ -6,8 +6,7 @@ let activePlayer = 0;
 let imageShuffle = []
 let img = 0;
 let vote = 0;
-let v = 0;
-let p = 0;
+let playerIndex = 0;
 let gameState = 0;
 let currentDrawing = [];
 let imageShuffled = [];
@@ -33,9 +32,10 @@ io.on('connection', socket => {
             }
         }
         if (alreadyPresent < 0) {
-            index = p;
-            p++;
+            index = playerIndex;
+            playerIndex++;
             idList.push(userID);
+            console.log(idList)
             playerList.push(socket);
             playerPoints.push(0);
             playedList.push(false);
@@ -48,6 +48,17 @@ io.on('connection', socket => {
     socket.on('gamestart', () => {
         console.log('gameStart');
         if (socket.dbId == 1) {
+            for (let p = playerList.length-1; p >= 0; p--) {
+                let player = playerList[p]
+                playerPoints[p]=0;
+                if(player.disconnected) {
+                    playerList.splice(p, 1);
+                    idList.splice(p, 1);
+                    playerPoints.splice(p, 1);
+                    playedList.splice(p, 1);
+                    connectList.splice(p, 1);
+                }
+            }
             // console.log('gameStart true');
             gameState = 1;
             console.log('gameState changed' + gameState);
@@ -56,9 +67,11 @@ io.on('connection', socket => {
 
         }
     });
-    socket.on('commands', () => {
+    socket.on('commands', data => {
         if (socket.dbId == 1) {
-
+            if (data[0] == "points") {
+                maxPoints = data[1]
+            }
         }
     });
 
@@ -69,7 +82,7 @@ io.on('connection', socket => {
 
 
     socket.on('draw', message => {
-        if ((index == activePlayer) && (gameState = 1)) {
+        if ((index == activePlayer) && (gameState == 1)) {
             currentDrawing.push(message)
             socket.broadcast.emit('draw', message)
         }
@@ -87,6 +100,7 @@ io.on('connection', socket => {
             for (let p of playerList) {
                 if (!p.disconnected) {numConnected++}
             }
+            console.log('numConnected', numConnected, img)
             if (img >= numConnected) {
                 gameState = 2;
                 let imageList = []
@@ -100,16 +114,17 @@ io.on('connection', socket => {
                 io.emit('endImage', imageShuffled);
                 playerList[activePlayer].emit('qui', imageShuffle);
                 console.log("why", gameState)
-                for (let g= 0; g< playedList.length; g++) {playedList[g] = false;}
+                playedList.fill(false);
             }
         }
     })
 
     socket.on('choose-vote', message => {
-        console.log(gameState+" - h1");
+        console.log("h1 " + socket.dbId+ index);
         if (gameState == 2) {
-                    console.log(gameState+" - h2");
+            console.log(socket.dbId+" - h2" + index);
             if (index != activePlayer) {
+                console.log(socket.dbId+" - h3");
                 if (!playedList[index]) {
                     vote++
                     playedList[index] = true;
@@ -117,60 +132,61 @@ io.on('connection', socket => {
                 }
                 playerList[index].v = message;
 
-            }
-            let numConnected = 0;
-            for (let p = 0; p< playerList.length; p++) {
-                if ((!playerList[p].disconnected) && (p != activePlayer)) {numConnected++}
-            }
-            console.log(numConnected, "goz");
-            if (vote >= numConnected) {
-                let voteResult = []
-                for (let player of playerList) {
-                    voteResult.push(player.v);
+                let numConnected = 0;
+                for (let p = 0; p< playerList.length; p++) {
+                    if ((!playerList[p].disconnected) && (p != activePlayer)) {numConnected++}
                 }
-                let iwhile = 0;
-                let bonusScore = new Array(playerList.length).fill(0);
-                let foundScore = new Array(playerList.length).fill(0);
-                let validVotes = 0;
-                for (let i = 0; i < voteResult.length; i++) {
-                    if (voteResult[i]>=0) {
-                        if (imageShuffle[voteResult[i]] != index){
-                            bonusScore[imageShuffle[voteResult[i]]]++
-                        }
-                        if (imageShuffle[voteResult[i]] == activePlayer) {foundScore[i]+=3;}
-                        validVotes++
+                console.log('numConnected', numConnected, vote)
+                console.log(numConnected, "goz2");
+                if (vote >= numConnected) {
+                    let voteResult = []
+                    for (let player of playerList) {
+                        voteResult.push(player.v);
                     }
-                }
-                if ((bonusScore[activePlayer] == 0) || (bonusScore[activePlayer] == validVotes)) {
-                    bonusScore = new Array(playerList.length).fill(0);
-                    foundScore = new Array(playerList.length).fill(2);
-                    foundScore[activePlayer] = 0;
-                } else {
-                    foundScore[activePlayer] = 3; bonusScore[activePlayer] = 0;
-                }
-                for (let i = 0; i < playerList.length; i++) {
-                    playerPoints[i] += (Math.min(3,bonusScore[i])+foundScore[i])
-                }
-                console.log("points", playerPoints)
-                do {
-                    activePlayer++;
-                    activePlayer= activePlayer%playerList.length
-                    iwhile++;
-                }while ((playerList[activePlayer].disconnected) && (iwhile<playerList.length))
+                    let bonusScore = new Array(playerList.length).fill(0);
+                    let foundScore = new Array(playerList.length).fill(0);
+                    let validVotes = 0;
+                    for (let i = 0; i < voteResult.length; i++) {
+                        if (voteResult[i]>=0) {
+                            if (imageShuffle[voteResult[i]] != index){
+                                bonusScore[imageShuffle[voteResult[i]]]++
+                            }
+                            if (imageShuffle[voteResult[i]] == activePlayer) {foundScore[i]+=3;}
+                            validVotes++
+                        }
+                    }
+                    if ((bonusScore[activePlayer] == 0) || (bonusScore[activePlayer] == validVotes)) {
+                        bonusScore = new Array(playerList.length).fill(0);
+                        foundScore = new Array(playerList.length).fill(2);
+                        foundScore[activePlayer] = 0;
+                    } else {
+                        foundScore[activePlayer] = 3; bonusScore[activePlayer] = 0;
+                    }
+                    for (let i = 0; i < playerList.length; i++) {
+                        playerPoints[i] += (Math.min(3,bonusScore[i])+foundScore[i])
+                    }
+                    console.log("points", playerPoints)
+                    let iwhile = 0;
+                    do {
+                        activePlayer++;
+                        activePlayer= activePlayer%playerList.length
+                        iwhile++;
+                    }while ((playerList[activePlayer].disconnected) && (iwhile<playerList.length))
 
-                io.emit("whosTurn", [playerList[activePlayer].dbId, voteResult, imageShuffle, playerPoints]);
-                for (let player of playerList) {
-                    player.i = ""; player.v = -1;
+                    io.emit("whosTurn", [playerList[activePlayer].dbId, voteResult, imageShuffle, playerPoints]);
+                    for (let player of playerList) {
+                        player.i = ""; player.v = -1;
+                    }
+                    img = 0; vote = 0;
+                    currentDrawing = [];
+                    if (Math.max(...playerPoints) >= maxPoints) {
+                        io.emit('endGame', "")
+                        gameState = 0;
+                    } else {
+                        gameState = 1;
+                    }
+                    playedList.fill(false);
                 }
-                img = 0; vote = 0;
-                currentDrawing = [];
-                if (Math.max(...playerPoints) >= maxPoints) {
-                    io.emit('endGame', "")
-                    gameState = 0;
-                } else {
-                    gameState = 1;
-                }
-                for (let g= 0; g< playedList.length; g++) {playedList[g] = false;}
             }
         }
     })
@@ -186,9 +202,7 @@ function shuffle(input) {
         order[i] = input.indexOf(arr[rand]);
         temp.push(arr[rand])
         arr.splice(rand, 1);
-        console.log(rand)
         i++;
     }
-    console.log(temp, order)
     return [temp, order]
 }
