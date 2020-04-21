@@ -16,7 +16,6 @@ let playerPoints = [];
 let maxPoints = 20;
 
 io.on('connection', socket => {
-    let index = -1;
 
     socket.on('newUser', userID => {
         socket.i = "s";
@@ -26,13 +25,14 @@ io.on('connection', socket => {
         for (let player = 0; player < playerList.length; player++) {
             if (playerList[player].dbId == userID) {
                 playerList[player] = socket;
-                alreadyPresent = index = player;
+                alreadyPresent = socket.index = player;
                 io.emit('conn', socket.dbId);
-                connectList[index] = true;
+                connectList[socket.index] = true;
             }
         }
         if (alreadyPresent < 0) {
-            index = playerIndex;
+            socket.index = playerIndex;
+            // index = playerIndex;
             playerIndex++;
             idList.push(userID);
             console.log(idList)
@@ -47,11 +47,14 @@ io.on('connection', socket => {
 
     socket.on('gamestart', () => {
         console.log('gameStart');
+        let deletedUsers = [];
         if (socket.dbId == 1) {
+            activePlayer == 0;
             for (let p = playerList.length-1; p >= 0; p--) {
                 let player = playerList[p]
                 playerPoints[p]=0;
                 if(player.disconnected) {
+                    deletedUsers.push(player.dbId);
                     playerList.splice(p, 1);
                     idList.splice(p, 1);
                     playerPoints.splice(p, 1);
@@ -59,10 +62,13 @@ io.on('connection', socket => {
                     connectList.splice(p, 1);
                 }
             }
+            for (let p = 0; p < playerList.length; p++) {
+                playerList[p].index = p;
+            }
             // console.log('gameStart true');
             gameState = 1;
             console.log('gameState changed' + gameState);
-            io.emit('gamestarted', 's');
+            io.emit('gamestarted', deletedUsers);
             console.log('gameStaarted send' + gameState);
 
         }
@@ -76,13 +82,13 @@ io.on('connection', socket => {
     });
 
     socket.on('disconnect', () => {
-        connectList[index] = false;
+        connectList[socket.index] = false;
         io.emit('discon', socket.dbId);
     });
 
 
     socket.on('draw', message => {
-        if ((index == activePlayer) && (gameState == 1)) {
+        if ((socket.index == activePlayer) && (gameState == 1)) {
             currentDrawing.push(message)
             socket.broadcast.emit('draw', message)
         }
@@ -90,12 +96,12 @@ io.on('connection', socket => {
 
     socket.on('choose-image', message => {
         if (gameState == 1) {
-            if (!playedList[index]) {
+            if (!playedList[socket.index]) {
                 img++
-                playedList[index] = true;
+                playedList[socket.index] = true;
                 io.emit('played', socket.dbId)
             }
-            playerList[index].i = message;
+            playerList[socket.index].i = message;
             let numConnected = 0;
             for (let p of playerList) {
                 if (!p.disconnected) {numConnected++}
@@ -120,17 +126,17 @@ io.on('connection', socket => {
     })
 
     socket.on('choose-vote', message => {
-        console.log("h1 " + socket.dbId+ index);
+        console.log("h1 " + socket.dbId+ socket.index);
         if (gameState == 2) {
-            console.log(socket.dbId+" - h2" + index);
-            if (index != activePlayer) {
+            console.log(socket.dbId+" - h2" + socket.index);
+            if (socket.index != activePlayer) {
                 console.log(socket.dbId+" - h3");
-                if (!playedList[index]) {
+                if (!playedList[socket.index]) {
                     vote++
-                    playedList[index] = true;
+                    playedList[socket.index] = true;
                     io.emit('played', socket.dbId)
                 }
-                playerList[index].v = message;
+                playerList[socket.index].v = message;
 
                 let numConnected = 0;
                 for (let p = 0; p< playerList.length; p++) {
@@ -148,7 +154,7 @@ io.on('connection', socket => {
                     let validVotes = 0;
                     for (let i = 0; i < voteResult.length; i++) {
                         if (voteResult[i]>=0) {
-                            if (imageShuffle[voteResult[i]] != index){
+                            if (imageShuffle[voteResult[i]] != socket.index){
                                 bonusScore[imageShuffle[voteResult[i]]]++
                             }
                             if (imageShuffle[voteResult[i]] == activePlayer) {foundScore[i]+=3;}
