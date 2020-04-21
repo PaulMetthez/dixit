@@ -133,12 +133,14 @@ io.on('connection', socket => {
                 let validVotes = 0;
                 for (let i = 0; i < voteResult.length; i++) {
                     if (voteResult[i]>=0) {
-                        bonusScore[imageShuffle[voteResult[i]]]++
+                        if (imageShuffle[voteResult[i]] != index){
+                            bonusScore[imageShuffle[voteResult[i]]]++
+                        }
                         if (imageShuffle[voteResult[i]] == activePlayer) {foundScore[i]+=3;}
                         validVotes++
                     }
                 }
-                if ((bonusScore[activePlayer] > 0) && (bonusScore[activePlayer]<validVotes)) {
+                if ((bonusScore[activePlayer] == 0) || (bonusScore[activePlayer] == validVotes)) {
                     bonusScore = new Array(playerList.length).fill(0);
                     foundScore = new Array(playerList.length).fill(2);
                     foundScore[activePlayer] = 0;
