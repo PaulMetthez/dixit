@@ -45,7 +45,9 @@ io.on('connection', socket => {
     })
 
     socket.on('gamestart', () => {
+        console.log('gameStart');
         if (socket.dbId == 1) {
+            console.log('gameStart true');
             gamestate = 1;
             io.emit('gamestart', socket.dbId);
         }
