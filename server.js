@@ -26,7 +26,6 @@ io.on('connection', socket => {
             socket.ro = io.sockets.adapter.rooms[roomName];
             roomSetup(roomName);
             socket.ro.admin = userID;
-            console.log("one player again");
         } else {
             io.to(socket.roN).emit('conn', socket.dbId);
             socket.ro.connectList[socket.index] = true;
@@ -42,9 +41,7 @@ io.on('connection', socket => {
         if (socket.ro.length == 1) {
             roomSetup(roomName);
             socket.ro.admin = userID;
-            console.log("one player")
         } else {
-            console.log("not_first_player")
         }
         socket.roN = roomName;
         socket.dbId = userID;
@@ -67,14 +64,12 @@ io.on('connection', socket => {
             // index = playerIndex;
             socket.ro.playerIndex++;
             socket.ro.idList.push(userID);
-            console.log(socket.ro.idList)
             socket.ro.playerList.push(socket);
             socket.ro.playerPoints.push(0);
             socket.ro.playedList.push(false);
             socket.ro.connectList.push(true);
             socket.broadcast.to(socket.roN).emit('newUser', userID)
         }
-        console.log(io.sockets.adapter.rooms[roomName].connectList);
             socket.emit('update',[socket.ro.gameState,socket.ro.currentDrawing,socket.ro.imageShuffled,socket.ro.idList,
             socket.ro.playedList,socket.ro.playerList[socket.ro.activePlayer].dbId, socket.ro.connectList, socket.ro.playerPoints,socket.ro.maxPoints,socket.ro.admin])
     })
@@ -101,9 +96,7 @@ io.on('connection', socket => {
             }
             // console.log('gameStart true');
             socket.ro.gameState = 1;
-            console.log('gameState changed' + socket.ro.gameState);
             io.to(socket.roN).emit('gamestarted', deletedUsers);
-            console.log('gameStarted send' + socket.ro.gameState);
 
         }
     });
@@ -115,7 +108,6 @@ io.on('connection', socket => {
     });
 
     socket.on('disconnect', () => {
-        console.log('disconnect')
         if (typeof socket.ro === 'undefined') {
 
         } else {
@@ -159,7 +151,6 @@ io.on('connection', socket => {
             for (let p of socket.ro.playerList) {
                 if (!p.disconnected) {numConnected++}
             }
-            console.log('numConnected', numConnected, socket.ro.img)
             if (socket.ro.img >= numConnected) {
                 socket.ro.gameState = 2;
                 let imageList = []
@@ -172,18 +163,14 @@ io.on('connection', socket => {
 
                 io.to(socket.roN).emit('endImage', socket.ro.imageShuffled);
                 socket.ro.playerList[socket.ro.activePlayer].emit('qui', socket.ro.imageShuffle);
-                console.log("why", socket.ro.gameState)
                 socket.ro.playedList.fill(false);
             }
         }
     })
 
     socket.on('choose-vote', message => {
-        console.log("h1 " + socket.dbId+ socket.index);
         if (socket.ro.gameState == 2) {
-            console.log(socket.dbId+" - h2" + socket.index);
             if (socket.index != socket.ro.activePlayer) {
-                console.log(socket.dbId+" - h3");
                 if (!socket.ro.playedList[socket.index]) {
                     socket.ro.vote++
                     socket.ro.playedList[socket.index] = true;
@@ -195,8 +182,6 @@ io.on('connection', socket => {
                 for (let p = 0; p< socket.ro.playerList.length; p++) {
                     if ((!socket.ro.playerList[p].disconnected) && (p != socket.ro.activePlayer)) {numConnected++}
                 }
-                console.log('numConnected', numConnected, socket.ro.vote)
-                console.log(numConnected, "goz2");
                 if (socket.ro.vote >= numConnected) {
                     let voteResult = []
                     for (let player of socket.ro.playerList) {
@@ -224,7 +209,6 @@ io.on('connection', socket => {
                     for (let i = 0; i < socket.ro.playerList.length; i++) {
                         socket.ro.playerPoints[i] += (Math.min(3,bonusScore[i])+foundScore[i])
                     }
-                    console.log("points", socket.ro.playerPoints)
                     let iwhile = 0;
                     do {
                         socket.ro.activePlayer++;
