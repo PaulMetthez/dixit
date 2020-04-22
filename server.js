@@ -20,6 +20,19 @@ function roomSetup(n) {
 
 io.on('connection', socket => {
 
+    socket.on('reconnect', data => {
+        if (typeof socket.ro === 'undefined') {
+            socket.join(roomName);
+            socket.ro = io.sockets.adapter.rooms[roomName];
+            roomSetup(roomName);
+            socket.ro.admin = userID;
+            console.log("one player again");
+        } else {
+            io.to(socket.roN).emit('conn', socket.dbId);
+            socket.ro.connectList[socket.index] = true;
+        }
+    });
+
     socket.on('newUser', data => {
         userID = data[0];
         roomName = data[1];
@@ -43,7 +56,7 @@ io.on('connection', socket => {
                 socket.ro.playerList[player] = socket;
                 alreadyPresent = player;
                 socket.index = player;
-                io.emit('conn', socket.dbId);
+                io.to(socket.roN).emit('conn', socket.dbId);
                 socket.ro.connectList[socket.index] = true;
             }
         }
