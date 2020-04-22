@@ -4,7 +4,8 @@
   "description": "dixit game",
   "main": "index.js",
   "scripts": {
-    "devStart": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "dixit"

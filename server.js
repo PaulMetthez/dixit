@@ -1,197 +1,237 @@
 const io = require('socket.io')(3000)
-let choosing = true;
-let playerList = [];
-let idList = []
-let activePlayer = 0;
-let imageShuffle = []
-let img = 0;
-let vote = 0;
-let playerIndex = 0;
-let gameState = 0;
-let currentDrawing = [];
-let imageShuffled = [];
-let playedList = [];
-let connectList = [];
-let playerPoints = [];
-let maxPoints = 20;
+
+function roomSetup(n) {
+    let pRoom = io.sockets.adapter.rooms[n];
+    pRoom.playerList = [];
+    pRoom.idList = []
+    pRoom.activePlayer = 0;
+    pRoom.imageShuffle = []
+    pRoom.img = 0;
+    pRoom.vote = 0;
+    pRoom.playerIndex = 0;
+    pRoom.gameState = 0;
+    pRoom.currentDrawing = [];
+    pRoom.imageShuffled = [];
+    pRoom.playedList = [];
+    io.sockets.adapter.rooms[n].connectList = [];
+    pRoom.playerPoints = [];
+    pRoom.maxPoints = 20;
+}
 
 io.on('connection', socket => {
 
-    socket.on('newUser', userID => {
-        socket.i = "s";
-        socket.v = -1;
+    socket.on('newUser', data => {
+        userID = data[0];
+        roomName = data[1];
+        socket.join(roomName);
+        console.log(roomName);
+        socket.ro = io.sockets.adapter.rooms[roomName];
+        if (socket.ro.length == 1) {
+            roomSetup(roomName);
+            socket.ro.admin = userID;
+            console.log("one player")
+        } else {
+            console.log("not_first_player")
+        }
+        socket.roN = roomName;
         socket.dbId = userID;
         let alreadyPresent = -1
-        for (let player = 0; player < playerList.length; player++) {
-            if (playerList[player].dbId == userID) {
-                playerList[player] = socket;
-                alreadyPresent = socket.index = player;
+        for (let player = 0; player < socket.ro.playerList.length; player++) {
+            if (socket.ro.playerList[player].dbId == userID) {
+                socket.i = socket.ro.playerList[player].i;
+                socket.v = socket.ro.playerList[player].v;
+                socket.ro.playerList[player] = socket;
+                alreadyPresent = player;
+                socket.index = player;
                 io.emit('conn', socket.dbId);
-                connectList[socket.index] = true;
+                socket.ro.connectList[socket.index] = true;
             }
         }
         if (alreadyPresent < 0) {
-            socket.index = playerIndex;
+            socket.i = "s";
+            socket.v = -1;
+            socket.index = socket.ro.playerIndex;
             // index = playerIndex;
-            playerIndex++;
-            idList.push(userID);
-            console.log(idList)
-            playerList.push(socket);
-            playerPoints.push(0);
-            playedList.push(false);
-            connectList.push(true);
-            socket.broadcast.emit('newUser', userID)
+            socket.ro.playerIndex++;
+            socket.ro.idList.push(userID);
+            console.log(socket.ro.idList)
+            socket.ro.playerList.push(socket);
+            socket.ro.playerPoints.push(0);
+            socket.ro.playedList.push(false);
+            socket.ro.connectList.push(true);
+            socket.broadcast.to(socket.roN).emit('newUser', userID)
         }
-        socket.emit('update',[gameState,currentDrawing,imageShuffled,idList,playedList,playerList[activePlayer].dbId, connectList, playerPoints])
+        console.log(io.sockets.adapter.rooms[roomName].connectList);
+            socket.emit('update',[socket.ro.gameState,socket.ro.currentDrawing,socket.ro.imageShuffled,socket.ro.idList,
+            socket.ro.playedList,socket.ro.playerList[socket.ro.activePlayer].dbId, socket.ro.connectList, socket.ro.playerPoints,socket.ro.maxPoints,socket.ro.admin])
     })
 
     socket.on('gamestart', () => {
         console.log('gameStart');
         let deletedUsers = [];
-        if (socket.dbId == 1) {
-            activePlayer == 0;
-            for (let p = playerList.length-1; p >= 0; p--) {
-                let player = playerList[p]
-                playerPoints[p]=0;
+        if (socket.dbId == socket.ro.admin) {
+            socket.ro.activePlayer = 0;
+            for (let p = socket.ro.playerList.length-1; p >= 0; p--) {
+                let player = socket.ro.playerList[p]
+                socket.ro.playerPoints[p]=0;
                 if(player.disconnected) {
                     deletedUsers.push(player.dbId);
-                    playerList.splice(p, 1);
-                    idList.splice(p, 1);
-                    playerPoints.splice(p, 1);
-                    playedList.splice(p, 1);
-                    connectList.splice(p, 1);
+                    socket.ro.playerList.splice(p, 1);
+                    socket.ro.idList.splice(p, 1);
+                    socket.ro.playerPoints.splice(p, 1);
+                    socket.ro.playedList.splice(p, 1);
+                    socket.ro.connectList.splice(p, 1);
                 }
             }
-            for (let p = 0; p < playerList.length; p++) {
-                playerList[p].index = p;
+            for (let p = 0; p < socket.ro.playerList.length; p++) {
+                socket.ro.playerList[p].index = p;
             }
             // console.log('gameStart true');
-            gameState = 1;
-            console.log('gameState changed' + gameState);
-            io.emit('gamestarted', deletedUsers);
-            console.log('gameStaarted send' + gameState);
+            socket.ro.gameState = 1;
+            console.log('gameState changed' + socket.ro.gameState);
+            io.to(socket.roN).emit('gamestarted', deletedUsers);
+            console.log('gameStarted send' + socket.ro.gameState);
 
         }
     });
-    socket.on('commands', data => {
-        if (socket.dbId == 1) {
-            if (data[0] == "points") {
-                maxPoints = data[1]
-            }
+    socket.on('changeSettings', data => {
+        if (socket.dbId == socket.ro.admin) {
+            socket.ro.maxPoints = data;
+            socket.broadcast.to(socket.roN).emit('changeMaxPoint', data);
         }
     });
 
     socket.on('disconnect', () => {
-        connectList[socket.index] = false;
-        io.emit('discon', socket.dbId);
+        console.log('disconnect')
+        if (typeof socket.ro === 'undefined') {
+
+        } else {
+            if (socket.ro.admin == socket.dbId) {
+                let p = 0;
+                while (socket.ro.playerList[p].disconnected && p < socket.ro.playerList.length-1) {
+                    p++
+                }
+                socket.ro.admin = socket.ro.playerList[p].dbId;
+            }
+            socket.ro.connectList[socket.index] = false;
+            socket.broadcast.to(socket.roN).emit('discon', [socket.dbId, socket.ro.admin]);
+        }
+        // console.log(io.sockets.adapter.rooms['test'].length);
+        // for (let p = 0; p < io.sockets.adapter.rooms['test'].length; p++) {
+        //     let temp = io.sockets.adapter.rooms['test'].sockets
+        //     // console.log()[socket.roN]
+        //     io.sockets.sockets[Object.keys(temp)[p]].leave('test')
+        // }
+        // console.log(io.sockets.adapter.rooms);
+
     });
 
 
     socket.on('draw', message => {
-        if ((socket.index == activePlayer) && (gameState == 1)) {
-            currentDrawing.push(message)
-            socket.broadcast.emit('draw', message)
+        if ((socket.index == socket.ro.activePlayer) && (socket.ro.gameState == 1)) {
+            socket.ro.currentDrawing.push(message)
+            socket.broadcast.to(socket.roN).emit('draw', message)
         }
     })
 
     socket.on('choose-image', message => {
-        if (gameState == 1) {
-            if (!playedList[socket.index]) {
-                img++
-                playedList[socket.index] = true;
-                io.emit('played', socket.dbId)
+        if (socket.ro.gameState == 1) {
+            if (!socket.ro.playedList[socket.index]) {
+                socket.ro.img++
+                socket.ro.playedList[socket.index] = true;
+                io.to(socket.roN).emit('played', socket.dbId)
             }
-            playerList[socket.index].i = message;
+            socket.ro.playerList[socket.index].i = message;
             let numConnected = 0;
-            for (let p of playerList) {
+            for (let p of socket.ro.playerList) {
                 if (!p.disconnected) {numConnected++}
             }
-            console.log('numConnected', numConnected, img)
-            if (img >= numConnected) {
-                gameState = 2;
+            console.log('numConnected', numConnected, socket.ro.img)
+            if (socket.ro.img >= numConnected) {
+                socket.ro.gameState = 2;
                 let imageList = []
-                for (let player of playerList) {
+                for (let player of socket.ro.playerList) {
                     imageList.push(player.i);
                 }
                 let shuffled = shuffle(imageList)
-                imageShuffled = shuffled[0];
-                imageShuffle = shuffled[1];
+                socket.ro.imageShuffled = shuffled[0];
+                socket.ro.imageShuffle = shuffled[1];
 
-                io.emit('endImage', imageShuffled);
-                playerList[activePlayer].emit('qui', imageShuffle);
-                console.log("why", gameState)
-                playedList.fill(false);
+                io.to(socket.roN).emit('endImage', socket.ro.imageShuffled);
+                socket.ro.playerList[socket.ro.activePlayer].emit('qui', socket.ro.imageShuffle);
+                console.log("why", socket.ro.gameState)
+                socket.ro.playedList.fill(false);
             }
         }
     })
 
     socket.on('choose-vote', message => {
         console.log("h1 " + socket.dbId+ socket.index);
-        if (gameState == 2) {
+        if (socket.ro.gameState == 2) {
             console.log(socket.dbId+" - h2" + socket.index);
-            if (socket.index != activePlayer) {
+            if (socket.index != socket.ro.activePlayer) {
                 console.log(socket.dbId+" - h3");
-                if (!playedList[socket.index]) {
-                    vote++
-                    playedList[socket.index] = true;
-                    io.emit('played', socket.dbId)
+                if (!socket.ro.playedList[socket.index]) {
+                    socket.ro.vote++
+                    socket.ro.playedList[socket.index] = true;
+                    io.to(socket.roN).emit('played', socket.dbId)
                 }
-                playerList[socket.index].v = message;
+                socket.ro.playerList[socket.index].v = message;
 
                 let numConnected = 0;
-                for (let p = 0; p< playerList.length; p++) {
-                    if ((!playerList[p].disconnected) && (p != activePlayer)) {numConnected++}
+                for (let p = 0; p< socket.ro.playerList.length; p++) {
+                    if ((!socket.ro.playerList[p].disconnected) && (p != socket.ro.activePlayer)) {numConnected++}
                 }
-                console.log('numConnected', numConnected, vote)
+                console.log('numConnected', numConnected, socket.ro.vote)
                 console.log(numConnected, "goz2");
-                if (vote >= numConnected) {
+                if (socket.ro.vote >= numConnected) {
                     let voteResult = []
-                    for (let player of playerList) {
+                    for (let player of socket.ro.playerList) {
                         voteResult.push(player.v);
                     }
-                    let bonusScore = new Array(playerList.length).fill(0);
-                    let foundScore = new Array(playerList.length).fill(0);
+                    let bonusScore = new Array(socket.ro.playerList.length).fill(0);
+                    let foundScore = new Array(socket.ro.playerList.length).fill(0);
                     let validVotes = 0;
                     for (let i = 0; i < voteResult.length; i++) {
                         if (voteResult[i]>=0) {
-                            if (imageShuffle[voteResult[i]] != socket.index){
-                                bonusScore[imageShuffle[voteResult[i]]]++
+                            if (socket.ro.imageShuffle[voteResult[i]] != socket.index){
+                                bonusScore[socket.ro.imageShuffle[voteResult[i]]]++
                             }
-                            if (imageShuffle[voteResult[i]] == activePlayer) {foundScore[i]+=3;}
+                            if (socket.ro.imageShuffle[voteResult[i]] == socket.ro.activePlayer) {foundScore[i]+=3;}
                             validVotes++
                         }
                     }
-                    if ((bonusScore[activePlayer] == 0) || (bonusScore[activePlayer] == validVotes)) {
-                        bonusScore = new Array(playerList.length).fill(0);
-                        foundScore = new Array(playerList.length).fill(2);
-                        foundScore[activePlayer] = 0;
+                    if ((bonusScore[socket.ro.activePlayer] == 0) || (bonusScore[socket.ro.activePlayer] == validVotes)) {
+                        bonusScore = new Array(socket.ro.playerList.length).fill(0);
+                        foundScore = new Array(socket.ro.playerList.length).fill(2);
+                        foundScore[socket.ro.activePlayer] = 0;
                     } else {
-                        foundScore[activePlayer] = 3; bonusScore[activePlayer] = 0;
+                        foundScore[socket.ro.activePlayer] = 3; bonusScore[socket.ro.activePlayer] = 0;
                     }
-                    for (let i = 0; i < playerList.length; i++) {
-                        playerPoints[i] += (Math.min(3,bonusScore[i])+foundScore[i])
+                    for (let i = 0; i < socket.ro.playerList.length; i++) {
+                        socket.ro.playerPoints[i] += (Math.min(3,bonusScore[i])+foundScore[i])
                     }
-                    console.log("points", playerPoints)
+                    console.log("points", socket.ro.playerPoints)
                     let iwhile = 0;
                     do {
-                        activePlayer++;
-                        activePlayer= activePlayer%playerList.length
+                        socket.ro.activePlayer++;
+                        socket.ro.activePlayer= socket.ro.activePlayer%socket.ro.playerList.length
                         iwhile++;
-                    }while ((playerList[activePlayer].disconnected) && (iwhile<playerList.length))
+                    }while ((socket.ro.playerList[socket.ro.activePlayer].disconnected) && (iwhile<socket.ro.playerList.length))
 
-                    io.emit("whosTurn", [playerList[activePlayer].dbId, voteResult, imageShuffle, playerPoints]);
-                    for (let player of playerList) {
+                    io.to(socket.roN).emit("whosTurn", [socket.ro.playerList[socket.ro.activePlayer].dbId, voteResult, socket.ro.imageShuffle, socket.ro.playerPoints]);
+                    for (let player of socket.ro.playerList) {
                         player.i = ""; player.v = -1;
                     }
-                    img = 0; vote = 0;
-                    currentDrawing = [];
-                    if (Math.max(...playerPoints) >= maxPoints) {
-                        io.emit('endGame', "")
-                        gameState = 0;
+                    socket.ro.img = 0; socket.ro.vote = 0;
+                    socket.ro.currentDrawing = [];
+                    if (Math.max(...socket.ro.playerPoints) >= socket.ro.maxPoints) {
+                        io.to(socket.roN).emit('endGame', "")
+                        socket.ro.gameState = 0;
                     } else {
-                        gameState = 1;
+                        socket.ro.gameState = 1;
                     }
-                    playedList.fill(false);
+                    socket.ro.playedList.fill(false);
                 }
             }
         }
