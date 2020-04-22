@@ -96,7 +96,7 @@ io.on('connection', socket => {
             }
             // console.log('gameStart true');
             socket.ro.gameState = 1;
-            io.to(socket.roN).emit('gamestarted', [deletedUsers, socket.ro.activePlayer]);
+            io.to(socket.roN).emit('gamestarted', [deletedUsers, socket.ro.playerList[socket.ro.activePlayer].dbId]);
 
         }
     });
