@@ -35,11 +35,11 @@ io.on('connection', socket => {
 
     socket.on('newUser', data => {
         userID = data[0];
-        roomName = toString(data[1]);
+        roomName = data[1];
         let pattern = /^[a-zA-Z]+$/;
         if(userID == "") { return }
         console.log(pattern.test(roomName), roomName, data[1]);
-        if((pattern.test(roomName) == false) || (roomName.length < 5) || (roomName.length > 15)) { return }
+        if((pattern.test(roomName) == false) || (typeof roomName !== 'string') || (roomName.length < 5) || (roomName.length > 15)) { return }
         socket.join(roomName);
         console.log(roomName);
         socket.ro = io.sockets.adapter.rooms[roomName];
