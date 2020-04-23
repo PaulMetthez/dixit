@@ -27,6 +27,7 @@ io.on('connection', socket => {
             roomSetup(roomName);
             socket.ro.admin = userID;
         } else {
+            socket.join(roomName);
             io.to(socket.roN).emit('conn', socket.dbId);
             socket.ro.connectList[socket.index] = true;
         }
@@ -34,7 +35,10 @@ io.on('connection', socket => {
 
     socket.on('newUser', data => {
         userID = data[0];
-        roomName = data[1];
+        roomName = toString(data[1]);
+        let pattern = /^[a-zA-Z]+$/;
+        if(userID == "") { return }
+        if((pat.test(roomName) == false) || (roomName.length < 5) || (roomName.length > 15)) { return }
         socket.join(roomName);
         console.log(roomName);
         socket.ro = io.sockets.adapter.rooms[roomName];
@@ -75,6 +79,7 @@ io.on('connection', socket => {
     })
 
     socket.on('gamestart', () => {
+        if (typeof socket.ro === 'undefined' || socket.dbId === 'undefined') {return}
         console.log('gameStart');
         let deletedUsers = [];
         if (socket.dbId == socket.ro.admin) {
@@ -97,10 +102,10 @@ io.on('connection', socket => {
             // console.log('gameStart true');
             socket.ro.gameState = 1;
             io.to(socket.roN).emit('gamestarted', [deletedUsers, socket.ro.playerList[socket.ro.activePlayer].dbId]);
-
         }
     });
     socket.on('changeSettings', data => {
+        if (typeof socket.ro === 'undefined' || socket.dbId === 'undefined') {return}
         if (socket.dbId == socket.ro.admin) {
             socket.ro.maxPoints = data;
             socket.broadcast.to(socket.roN).emit('changeMaxPoint', data);
@@ -109,7 +114,6 @@ io.on('connection', socket => {
 
     socket.on('disconnect', () => {
         if (typeof socket.ro === 'undefined') {
-
         } else {
             if (socket.ro.admin == socket.dbId) {
                 let p = 0;
@@ -133,6 +137,7 @@ io.on('connection', socket => {
 
 
     socket.on('draw', message => {
+        if (typeof socket.ro === 'undefined' || socket.dbId === 'undefined') {return}
         if ((socket.index == socket.ro.activePlayer) && (socket.ro.gameState == 1)) {
             socket.ro.currentDrawing.push(message)
             socket.broadcast.to(socket.roN).emit('draw', message)
@@ -140,6 +145,7 @@ io.on('connection', socket => {
     })
 
     socket.on('choose-image', message => {
+        if (typeof socket.ro === 'undefined' || socket.dbId === 'undefined') {return}
         if (socket.ro.gameState == 1) {
             if (!socket.ro.playedList[socket.index]) {
                 socket.ro.img++
@@ -169,6 +175,7 @@ io.on('connection', socket => {
     })
 
     socket.on('choose-vote', message => {
+        if (typeof socket.ro === 'undefined' || socket.dbId === 'undefined') {return}
         if (socket.ro.gameState == 2) {
             if (socket.index != socket.ro.activePlayer) {
                 if (!socket.ro.playedList[socket.index]) {
