@@ -38,6 +38,7 @@ io.on('connection', socket => {
         roomName = toString(data[1]);
         let pattern = /^[a-zA-Z]+$/;
         if(userID == "") { return }
+        console.log(pattern.test(roomName), roomName, data[1]);
         if((pattern.test(roomName) == false) || (roomName.length < 5) || (roomName.length > 15)) { return }
         socket.join(roomName);
         console.log(roomName);
